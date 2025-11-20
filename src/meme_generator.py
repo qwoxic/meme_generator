@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
                              QGraphicsScene, QGraphicsPixmapItem, QGraphicsTextItem,
                              QInputDialog, QStatusBar, QMenuBar, QMenu,
                              QComboBox, QSlider, QLabel, QColorDialog, QDialog,
-                             QDialogButtonBox, QFormLayout)
+                             QDialogButtonBox, QFormLayout, QGroupBox)
 from PyQt6.QtGui import (QPixmap, QFont, QColor, QImage, QPainter, QAction, QKeySequence)
 from PyQt6.QtCore import Qt
 
@@ -24,27 +24,6 @@ class Database:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 path TEXT NOT NULL,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS meme_versions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                original_path TEXT,
-                final_path TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                settings TEXT
-            )
-        ''')
-        
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS meme_edits (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                meme_version_id INTEGER,
-                edit_type TEXT,
-                edit_data TEXT,
-                edited_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (meme_version_id) REFERENCES meme_versions (id)
             )
         ''')
         
@@ -78,6 +57,7 @@ class TextSettingsDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Настройки текста")
         self.setModal(True)
+        self.setFixedSize(350, 300)
         self.init_ui()
     
     def init_ui(self):
@@ -127,11 +107,11 @@ class MemeGenerator(QMainWindow):
         self.is_modified = False
         self.db = Database()
         self.meme_phrases = [
-            "ПОКА ВЫ ТЕРЯЛИ ВРЕМЯ\nЯ ИЗУЧАЛ C++",
-            "КОГДА ТЫ ПОНИМАЕШЬ\nЧТО ЗАВТРА ДЕДЛАЙН",
+            "КОГДА ДЕДЛАЙН\nЧЕРЕЗ 5 МИНУТ",
             "ОЖИДАНИЕ\nРЕАЛЬНОСТЬ",
-            "РАБОТА МЕЧТЫ\nРАБОТА В РЕАЛЬНОСТИ",
-            "КОГДА ТЕСТ ПРОЙДЕН\nНО ТЫ НИЧЕГО НЕ ПОНИМАЕШЬ"
+            "МОЙ КОД\nПРОШЕЛ ТЕСТЫ",
+            "КОГДА ПОНИМАЕШЬ\nЧТО ЖИЗНЬ ЭТО\nНЕ ХАКАТОН",
+            "УЧИТЕЛЬ: НЕТ ДЗ\nЯ: ОТЛИЧНО"
         ]
         
         self.init_ui()
@@ -335,11 +315,16 @@ Delete - Удалить выделенный текст
         )
         
         image_rect = self.image_item.boundingRect()
+        text_rect = text_item.boundingRect()
+        
         if position == 'top':
-            text_item.setPos(image_rect.width()/2 - len(text)*10, 20)
+            x = (image_rect.width() - text_rect.width()) / 2
+            text_item.setPos(x, 30)
             self.top_text_item = text_item
         else:
-            text_item.setPos(image_rect.width()/2 - len(text)*10, image_rect.height() - 80)
+            x = (image_rect.width() - text_rect.width()) / 2
+            y = image_rect.height() - text_rect.height() - 30
+            text_item.setPos(x, y)
             self.bottom_text_item = text_item
         
         self.scene.addItem(text_item)
