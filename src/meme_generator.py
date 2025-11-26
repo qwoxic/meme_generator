@@ -19,7 +19,6 @@ class Database:
     def init_database(self):
         conn = sqlite3.connect('memes.db')
         cursor = conn.cursor()
-        
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS image_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,28 +26,22 @@ class Database:
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS meme_stats (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                memes_created INTEGER DEFAULT 0,
-                last_created DATETIME DEFAULT CURRENT_TIMESTAMP
+                memes_created INTEGER DEFAULT 0
             )
         ''')
-        
         conn.commit()
         conn.close()
     
     def add_image_to_history(self, path):
         conn = sqlite3.connect('memes.db')
         cursor = conn.cursor()
-        
         cursor.execute('SELECT COUNT(*) FROM image_history')
         count = cursor.fetchone()[0]
-        
         if count >= 10:
             cursor.execute('DELETE FROM image_history WHERE id IN (SELECT id FROM image_history ORDER BY timestamp ASC LIMIT 1)')
-        
         cursor.execute('INSERT INTO image_history (path) VALUES (?)', (path,))
         conn.commit()
         conn.close()
@@ -64,13 +57,11 @@ class Database:
     def increment_meme_count(self):
         conn = sqlite3.connect('memes.db')
         cursor = conn.cursor()
-        
         cursor.execute('SELECT COUNT(*) FROM meme_stats')
         if cursor.fetchone()[0] == 0:
             cursor.execute('INSERT INTO meme_stats (memes_created) VALUES (1)')
         else:
-            cursor.execute('UPDATE meme_stats SET memes_created = memes_created + 1, last_created = CURRENT_TIMESTAMP')
-        
+            cursor.execute('UPDATE meme_stats SET memes_created = memes_created + 1')
         conn.commit()
         conn.close()
     
@@ -88,6 +79,7 @@ class TextSettingsDialog(QDialog):
         self.setWindowTitle("Настройки текста")
         self.setModal(True)
         self.setFixedSize(350, 300)
+        self.current_color = QColor('white')
         self.init_ui()
     
     def init_ui(self):
@@ -112,7 +104,6 @@ class TextSettingsDialog(QDialog):
         
         self.color_btn = QPushButton("Выбрать цвет")
         self.color_btn.clicked.connect(self.choose_color)
-        self.current_color = QColor('white')
         layout.addRow("Цвет:", self.color_btn)
         
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
@@ -138,12 +129,15 @@ class MemeGenerator(QMainWindow):
         self.db = Database()
         self.meme_count = self.db.get_meme_stats()
         
+        # База данных популярных мем-фраз
         self.meme_phrases = [
             "КОГДА ДЕДЛАЙН\nЧЕРЕЗ 5 МИНУТ",
-            "ОЖИДАНИЕ\nРЕАЛЬНОСТЬ",
+            "ОЖИДАНИЕ\nРЕАЛЬНОСТЬ", 
             "МОЙ КОД\nПРОШЕЛ ТЕСТЫ",
-            "КОГДА ПОНИМАЕШЬ\nЧТО ЖИЗНЬ ЭТО\nНЕ ХАКАТОН",
-            "УЧИТЕЛЬ: НЕТ ДЗ\nЯ: ОТЛИЧНО"
+            "УЧИТЕЛЬ: НЕТ ДЗ\nЯ: ОТЛИЧНО",
+            "СОН\nПРОСЫПАНИЕ",
+            "ПЛАН НА ДЕНЬ\nРЕАЛЬНОСТЬ",
+            "КОГДА ВИДИШЬ\nСВОЙ БАГ\nВ ПРОДАКШЕНЕ"
         ]
         
         self.quick_templates = [
@@ -151,9 +145,7 @@ class MemeGenerator(QMainWindow):
             "КОГДА ТЫ ПОНИМАЕШЬ...",
             "МОЙ КОД РАБОТАЕТ!",
             "ПОНЕСЛАСЬ...",
-            "У МЕНЯ ВСЁ ПОЛУЧИТСЯ",
-            "ЭТО НОРМАЛЬНО?",
-            "ТАК И БЫЛО ЗАПЛАНИРОВАНО"
+            "У МЕНЯ ВСЁ ПОЛУЧИТСЯ"
         ]
         
         self.init_ui()
@@ -169,16 +161,16 @@ class MemeGenerator(QMainWindow):
         
         buttons = [
             ('📁 Загрузить изображение', 'Ctrl+O', self.load_image),
-            ('🔝 Добавить верхний текст', 'Ctrl+T', lambda: self.add_text('top')),
-            ('🔽 Добавить нижний текст', 'Ctrl+B', lambda: self.add_text('bottom')),
+            ('🔝 Верхний текст', 'Ctrl+T', lambda: self.add_text('top')),
+            ('🔽 Нижний текст', 'Ctrl+B', lambda: self.add_text('bottom')),
             ('🎨 Настройки текста', '', self.show_text_settings),
             ('🎭 Быстрые шаблоны', '', self.show_templates),
             ('🎲 Случайный мем', 'Ctrl+R', self.generate_random_meme),
             ('📋 Копировать мем', 'Ctrl+C', self.copy_to_clipboard),
             ('💾 Сохранить мем', 'Ctrl+S', self.save_meme),
             ('📊 Статистика', '', self.show_stats),
-            ('🗑️ Удалить весь текст', 'Del', self.clear_all_text),
-            ('🔄 Сбросить всё', '', self.reset_all)
+            ('🗑️ Очистить текст', 'Del', self.clear_all_text),
+            ('🔄 Новый проект', '', self.reset_all)
         ]
         
         for text, shortcut, callback in buttons:
@@ -191,32 +183,33 @@ class MemeGenerator(QMainWindow):
                     padding: 12px; 
                     font-size: 14px; 
                     text-align: left;
-                    background: #f8f9fa;
-                    border: 1px solid #dee2e6;
+                    background: #2c3e50;
+                    color: white;
+                    border: none;
                     border-radius: 5px;
+                    margin: 2px;
                 }
                 QPushButton:hover {
-                    background: #e9ecef;
+                    background: #34495e;
+                }
+                QPushButton:pressed {
+                    background: #1abc9c;
                 }
             """)
             left_layout.addWidget(btn)
         
         left_layout.addStretch()
         
-        stats_label = QLabel(f"Создано мемов: {self.meme_count}")
-        stats_label.setStyleSheet("padding: 8px; font-size: 12px; color: #6c757d; background: transparent; border: none;")
+        stats_label = QLabel(f"📊 Создано мемов: {self.meme_count}")
+        stats_label.setStyleSheet("padding: 10px; font-size: 12px; color: #7f8c8d; background: #ecf0f1; border-radius: 5px;")
         left_layout.addWidget(stats_label)
-        
-        help_label = QPushButton("ℹ️ Горячие клавиши")
-        help_label.setStyleSheet("padding: 8px; font-size: 12px; color: #6c757d; background: transparent; border: none;")
-        help_label.clicked.connect(self.show_help)
-        left_layout.addWidget(help_label)
         
         main_layout.addWidget(left_panel)
         
+        # Основная рабочая область
         self.scene = QGraphicsScene()
         self.view = QGraphicsView(self.scene)
-        self.view.setStyleSheet("QGraphicsView { border: none; background: #f8f9fa; }")
+        self.view.setStyleSheet("QGraphicsView { border: 2px solid #bdc3c7; background: #ecf0f1; border-radius: 8px; }")
         self.view.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         self.view.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorViewCenter)
         main_layout.addWidget(self.view)
@@ -225,9 +218,10 @@ class MemeGenerator(QMainWindow):
         
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage(f'Готов к работе | Создано мемов: {self.meme_count}')
+        self.status_bar.showMessage(f'✅ Готов к созданию мемов | 📊 Всего создано: {self.meme_count}')
         
     def resizeEvent(self, event):
+        # Автоматическое масштабирование при изменении размера окна
         if hasattr(self, 'image_item'):
             self.fit_image_to_view()
         super().resizeEvent(event)
@@ -236,90 +230,68 @@ class MemeGenerator(QMainWindow):
         if hasattr(self, 'image_item'):
             self.view.fitInView(self.scene.itemsBoundingRect(), Qt.AspectRatioMode.KeepAspectRatio)
         
-    def show_help(self):
-        help_text = """
-Горячие клавиши:
-
-Ctrl+O - Загрузить изображение
-Ctrl+S - Сохранить мем  
-Ctrl+T - Добавить верхний текст
-Ctrl+B - Добавить нижний текст
-Ctrl+R - Случайный мем
-Ctrl+C - Копировать мем
-Delete - Удалить выделенный текст
-
-Наведите курсор на кнопки для подсказок!
-        """
-        QMessageBox.information(self, "Справка", help_text.strip())
-        
     def create_menus(self):
         menubar = self.menuBar()
+        menubar.setStyleSheet("QMenuBar { background: #2c3e50; color: white; } QMenuBar::item:selected { background: #1abc9c; }")
         
-        file_menu = menubar.addMenu('Файл')
+        file_menu = menubar.addMenu('📁 Файл')
         
-        load_action = QAction('Загрузить изображение', self)
+        load_action = QAction('🔄 Загрузить изображение', self)
         load_action.setShortcut(QKeySequence('Ctrl+O'))
         load_action.triggered.connect(self.load_image)
         file_menu.addAction(load_action)
         
-        random_action = QAction('Случайный мем', self)
+        random_action = QAction('🎲 Случайный мем', self)
         random_action.setShortcut(QKeySequence('Ctrl+R'))
         random_action.triggered.connect(self.generate_random_meme)
         file_menu.addAction(random_action)
         
-        copy_action = QAction('Копировать мем', self)
+        copy_action = QAction('📋 Копировать мем', self)
         copy_action.setShortcut(QKeySequence('Ctrl+C'))
         copy_action.triggered.connect(self.copy_to_clipboard)
         file_menu.addAction(copy_action)
         
-        save_action = QAction('Сохранить мем', self)
+        save_action = QAction('💾 Сохранить мем', self)
         save_action.setShortcut(QKeySequence('Ctrl+S'))
         save_action.triggered.connect(self.save_meme)
         file_menu.addAction(save_action)
         
         file_menu.addSeparator()
-        exit_action = QAction('Выход', self)
+        exit_action = QAction('🚪 Выход', self)
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
         
-        text_menu = menubar.addMenu('Текст')
+        edit_menu = menubar.addMenu('✏️ Редактирование')
         
-        top_text_action = QAction('Верхний текст', self)
+        top_text_action = QAction('🔝 Верхний текст', self)
         top_text_action.setShortcut(QKeySequence('Ctrl+T'))
         top_text_action.triggered.connect(lambda: self.add_text('top'))
-        text_menu.addAction(top_text_action)
+        edit_menu.addAction(top_text_action)
         
-        bottom_text_action = QAction('Нижний текст', self)
+        bottom_text_action = QAction('🔽 Нижний текст', self)
         bottom_text_action.setShortcut(QKeySequence('Ctrl+B'))
         bottom_text_action.triggered.connect(lambda: self.add_text('bottom'))
-        text_menu.addAction(bottom_text_action)
+        edit_menu.addAction(bottom_text_action)
         
-        templates_action = QAction('Быстрые шаблоны', self)
+        templates_action = QAction('🎭 Быстрые шаблоны', self)
         templates_action.triggered.connect(self.show_templates)
-        text_menu.addAction(templates_action)
+        edit_menu.addAction(templates_action)
         
-        text_settings_action = QAction('Настройки текста', self)
+        text_settings_action = QAction('🎨 Настройки текста', self)
         text_settings_action.triggered.connect(self.show_text_settings)
-        text_menu.addAction(text_settings_action)
-        
-        clear_text_action = QAction('Удалить весь текст', self)
-        clear_text_action.setShortcut(QKeySequence('Delete'))
-        clear_text_action.triggered.connect(self.clear_all_text)
-        text_menu.addAction(clear_text_action)
+        edit_menu.addAction(text_settings_action)
     
     def load_image(self):
+        # Проверка несохраненных изменений
         if self.is_modified:
             msg_box = QMessageBox(self)
-            msg_box.setWindowTitle('Внимание')
-            msg_box.setText('Есть несохраненные изменения. Загрузить новое изображение?')
+            msg_box.setWindowTitle('⚠️ Внимание')
+            msg_box.setText('Есть несохраненные изменения. Продолжить?')
             msg_box.setIcon(QMessageBox.Icon.Question)
-            
-            yes_btn = msg_box.addButton('Да', QMessageBox.ButtonRole.YesRole)
-            no_btn = msg_box.addButton('Нет', QMessageBox.ButtonRole.NoRole)
+            yes_btn = msg_box.addButton('✅ Да', QMessageBox.ButtonRole.YesRole)
+            no_btn = msg_box.addButton('❌ Нет', QMessageBox.ButtonRole.NoRole)
             msg_box.setDefaultButton(no_btn)
-            
             msg_box.exec()
-            
             if msg_box.clickedButton() == no_btn:
                 return
         
@@ -339,40 +311,43 @@ Delete - Удалить выделенный текст
                 self.image_item = QGraphicsPixmapItem(pixmap)
                 self.scene.addItem(self.image_item)
                 self.fit_image_to_view()
-                self.status_bar.showMessage(f'Загружено: {os.path.basename(file_path)} | Создано мемов: {self.meme_count}')
+                self.status_bar.showMessage(f'✅ Загружено: {os.path.basename(file_path)} | 📊 Всего создано: {self.meme_count}')
                 self.update_title()
                 self.db.add_image_to_history(file_path)
             else:
-                QMessageBox.warning(self, 'Ошибка', 'Не удалось загрузить изображение')
+                QMessageBox.warning(self, '❌ Ошибка', 'Не удалось загрузить изображение')
     
     def add_text(self, position, text=None):
         if not hasattr(self, 'image_item'):
-            QMessageBox.warning(self, 'Внимание', 'Сначала загрузите изображение!')
+            QMessageBox.warning(self, '⚠️ Внимание', 'Сначала загрузите изображение!')
             return
             
+        # Проверка на дублирование текстовых блоков
         if position == 'top' and self.top_text_item is not None:
-            QMessageBox.information(self, 'Информация', 'Верхний текст уже добавлен!')
+            QMessageBox.information(self, 'ℹ️ Информация', 'Верхний текст уже добавлен!')
             return
         elif position == 'bottom' and self.bottom_text_item is not None:
-            QMessageBox.information(self, 'Информация', 'Нижний текст уже добавлен!')
+            QMessageBox.information(self, 'ℹ️ Информация', 'Нижний текст уже добавлен!')
             return
         
         if text is None:
             default_text = "ВЕРХНИЙ ТЕКСТ" if position == 'top' else "НИЖНИЙ ТЕКСТ"
-            text, ok = QInputDialog.getText(self, 'Введите текст', 'Текст:', text=default_text)
+            text, ok = QInputDialog.getText(self, 'Введите текст', 'Текст мема:', text=default_text)
             if not ok or not text:
                 return
         
         text_item = QGraphicsTextItem(text)
         text_item.setDefaultTextColor(QColor('white'))
-        text_item.setFont(QFont('Arial', 36, QFont.Weight.Bold))
+        text_item.setFont(QFont('Impact', 42, QFont.Weight.Bold))
         
+        # Включение перемещения и выделения текста
         text_item.setFlags(
             QGraphicsTextItem.GraphicsItemFlag.ItemIsMovable |
             QGraphicsTextItem.GraphicsItemFlag.ItemIsSelectable |
             QGraphicsTextItem.GraphicsItemFlag.ItemIsFocusable
         )
         
+        # Точное позиционирование по центру
         image_rect = self.image_item.boundingRect()
         text_rect = text_item.boundingRect()
         
@@ -396,6 +371,7 @@ Delete - Удалить выделенный текст
             size = dialog.size_slider.value()
             color = dialog.current_color
             
+            # Применение настроек к выделенному тексту
             for item in self.scene.selectedItems():
                 if isinstance(item, QGraphicsTextItem):
                     item.setFont(QFont(font, size, QFont.Weight.Bold))
@@ -403,7 +379,7 @@ Delete - Удалить выделенный текст
     
     def show_templates(self):
         if not hasattr(self, 'image_item'):
-            QMessageBox.warning(self, 'Внимание', 'Сначала загрузите изображение!')
+            QMessageBox.warning(self, '⚠️ Внимание', 'Сначала загрузите изображение!')
             return
             
         template, ok = QInputDialog.getItem(self, 'Быстрые шаблоны', 
@@ -414,13 +390,14 @@ Delete - Удалить выделенный текст
             elif self.bottom_text_item is None:
                 self.add_text('bottom', template)
             else:
-                QMessageBox.information(self, 'Информация', 'Оба текстовых блока уже заняты!')
+                QMessageBox.information(self, 'ℹ️ Информация', 'Оба текстовых блока уже заняты!')
     
     def copy_to_clipboard(self):
         if not hasattr(self, 'image_item'):
-            QMessageBox.warning(self, 'Внимание', 'Нет изображения для копирования!')
+            QMessageBox.warning(self, '⚠️ Внимание', 'Нет изображения для копирования!')
             return
             
+        # Создание изображения мема для буфера обмена
         rect = self.scene.sceneRect()
         image = QImage(rect.size().toSize(), QImage.Format.Format_ARGB32)
         image.fill(Qt.GlobalColor.white)
@@ -432,13 +409,13 @@ Delete - Удалить выделенный текст
         clipboard = QApplication.clipboard()
         clipboard.setImage(image)
         
-        self.status_bar.showMessage(f'Мем скопирован в буфер обмена | Создано мемов: {self.meme_count}')
-        QMessageBox.information(self, 'Успех', 'Мем скопирован в буфер обмена!')
+        self.status_bar.showMessage(f'✅ Мем скопирован в буфер обмена | 📊 Всего создано: {self.meme_count}')
+        QMessageBox.information(self, '✅ Успех', 'Мем скопирован в буфер обмена!')
     
     def generate_random_meme(self):
         history = self.db.get_image_history()
         if not history:
-            QMessageBox.warning(self, 'Внимание', 'Сначала загрузите несколько изображений!')
+            QMessageBox.warning(self, '⚠️ Внимание', 'Сначала загрузите несколько изображений!')
             return
         
         random_image = random.choice(history)
@@ -456,27 +433,28 @@ Delete - Удалить выделенный текст
             self.scene.addItem(self.image_item)
             self.fit_image_to_view()
             
+            # Разделение фразы на верхнюю и нижнюю части
             lines = random_phrase.split('\n')
             if len(lines) >= 1:
                 self.add_text('top', lines[0])
             if len(lines) >= 2:
                 self.add_text('bottom', lines[1])
             
-            self.status_bar.showMessage(f'Создан случайный мем | Создано мемов: {self.meme_count}')
+            self.status_bar.showMessage(f'🎲 Создан случайный мем | 📊 Всего создано: {self.meme_count}')
             self.update_title()
         else:
-            QMessageBox.warning(self, 'Ошибка', 'Не удалось загрузить случайное изображение')
+            QMessageBox.warning(self, '❌ Ошибка', 'Не удалось загрузить случайное изображение')
     
     def show_stats(self):
         stats_text = f"""
-📊 Статистика генератора мемов:
+📊 СТАТИСТИКА ГЕНЕРАТОРА МЕМОВ:
 
 🖼️ Создано мемов: {self.meme_count}
-🎲 Доступных фраз: {len(self.meme_phrases)}
-🎭 Быстрых шаблонов: {len(self.quick_templates)}
+🎲 Фраз в базе: {len(self.meme_phrases)}
+🎭 Шаблонов: {len(self.quick_templates)}
 📝 Текущий проект: {os.path.basename(self.current_image_path) if self.current_image_path else 'Не загружен'}
 
-✨ Продолжаем создавать мемы!
+✨ Продолжаем творить!
         """
         QMessageBox.information(self, "📊 Статистика", stats_text.strip())
         
@@ -485,35 +463,33 @@ Delete - Удалить выделенный текст
         self.update_title()
         
     def update_title(self):
-        title = 'Генератор Мемов'
+        title = '🎨 Генератор Мемов'
         if self.is_modified:
-            title += ' *'
+            title += ' ✏️'
         if self.current_image_path:
             title += f' - {os.path.basename(self.current_image_path)}'
         self.setWindowTitle(title)
         
     def clear_all_text(self):
-        if self.top_text_item:
-            self.scene.removeItem(self.top_text_item)
+        if self.top_text_item or self.bottom_text_item:
+            self.scene.clear()
+            if hasattr(self, 'image_item'):
+                self.scene.addItem(self.image_item)
             self.top_text_item = None
-        if self.bottom_text_item:
-            self.scene.removeItem(self.bottom_text_item)
             self.bottom_text_item = None
-        self.set_modified(True)
+            self.set_modified(True)
+            self.status_bar.showMessage(f'✅ Текст очищен | 📊 Всего создано: {self.meme_count}')
         
     def reset_all(self):
         if self.is_modified:
             msg_box = QMessageBox(self)
-            msg_box.setWindowTitle('Сбросить всё')
-            msg_box.setText('Сбросить всё? Несохраненные изменения будут потеряны.')
+            msg_box.setWindowTitle('🔄 Новый проект')
+            msg_box.setText('Начать новый проект? Несохраненные изменения будут потеряны.')
             msg_box.setIcon(QMessageBox.Icon.Question)
-            
-            yes_btn = msg_box.addButton('Да', QMessageBox.ButtonRole.YesRole)
-            no_btn = msg_box.addButton('Нет', QMessageBox.ButtonRole.NoRole)
+            yes_btn = msg_box.addButton('✅ Да', QMessageBox.ButtonRole.YesRole)
+            no_btn = msg_box.addButton('❌ Нет', QMessageBox.ButtonRole.NoRole)
             msg_box.setDefaultButton(no_btn)
-            
             msg_box.exec()
-            
             if msg_box.clickedButton() == no_btn:
                 return
                 
@@ -523,18 +499,19 @@ Delete - Удалить выделенный текст
         self.current_image_path = None
         self.is_modified = False
         self.update_title()
-        self.status_bar.showMessage(f'Готов к работе | Создано мемов: {self.meme_count}')
+        self.status_bar.showMessage(f'✅ Готов к созданию мемов | 📊 Всего создано: {self.meme_count}')
         
     def save_meme(self):
         if not hasattr(self, 'image_item'):
-            QMessageBox.warning(self, 'Внимание', 'Нет изображения для сохранения!')
+            QMessageBox.warning(self, '⚠️ Внимание', 'Нет изображения для сохранения!')
             return
             
         file_path, _ = QFileDialog.getSaveFileName(
-            self, 'Сохранить мем', 'meme.png', 
+            self, 'Сохранить мем', f'meme_{random.randint(1000,9999)}.png', 
             'PNG (*.png);;JPEG (*.jpg *.jpeg)')
             
         if file_path:
+            # Рендеринг сцены в изображение
             rect = self.scene.sceneRect()
             image = QImage(rect.size().toSize(), QImage.Format.Format_ARGB32)
             image.fill(Qt.GlobalColor.white)
@@ -546,13 +523,15 @@ Delete - Удалить выделенный текст
             image.save(file_path)
             self.set_modified(False)
             
+            # Обновление статистики
             self.meme_count += 1
             self.db.increment_meme_count()
             
-            self.status_bar.showMessage(f'Сохранено: {os.path.basename(file_path)} | Создано мемов: {self.meme_count}')
-            QMessageBox.information(self, 'Успех', f'Мем сохранен!\n{file_path}')
+            self.status_bar.showMessage(f'💾 Сохранено: {os.path.basename(file_path)} | 📊 Всего создано: {self.meme_count}')
+            QMessageBox.information(self, '✅ Успех', f'Мем сохранен!\n\n📍 {file_path}')
     
     def keyPressEvent(self, event):
+        # Обработка горячих клавиш
         if event.key() == Qt.Key.Key_Delete:
             self.delete_selected_text()
         elif event.key() == Qt.Key.Key_C and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
@@ -561,6 +540,7 @@ Delete - Удалить выделенный текст
             super().keyPressEvent(event)
             
     def delete_selected_text(self):
+        # Удаление выделенного текста
         for item in self.scene.selectedItems():
             if isinstance(item, QGraphicsTextItem):
                 if item == self.top_text_item:
@@ -573,6 +553,18 @@ Delete - Удалить выделенный текст
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
+    
+    # Стилизация приложения
+    app.setStyleSheet("""
+        QMainWindow {
+            background: #34495e;
+        }
+        QMessageBox {
+            background: #ecf0f1;
+            font-size: 14px;
+        }
+    """)
+    
     generator = MemeGenerator()
     generator.show()
     sys.exit(app.exec())
