@@ -1,31 +1,43 @@
-# Константы приложения
-
 class Constants:
-    APP_NAME = "Генератор мемов"
-    APP_VERSION = "1.0.0"
+    # ... существующий код ...
     
-    # Размеры окна
-    WINDOW_WIDTH = 1000
-    WINDOW_HEIGHT = 700
+    # Новые константы
+    AVAILABLE_FONTS = [
+        "Arial", "Times New Roman", "Impact", "Comic Sans MS", 
+        "Verdana", "Courier New", "Georgia", "Trebuchet MS",
+        "Roboto", "Open Sans"
+    ]
     
-    # Цвета
-    BACKGROUND_COLOR = "#2b2b2b"
-    PANEL_COLOR = "#3c3f41"
-    TEXT_COLOR = "#ffffff"
+    MEME_PHRASES = [
+        "Когда наконец пятница",
+        "А можно я тоже?",
+        "ШОК! Эксперты в недоумении",
+        "Мои ожидания vs Реальность",
+        "Когда пытаешься работать в понедельник",
+        "Это фиаско, братан",
+        "Я у мамы дурачок",
+        "Нет, ну это вообще жесть",
+        "Так и знал, что так будет",
+        "А что, так можно было?",
+        "Вот это поворот!",
+        "Спокойствие, только спокойствие",
+        "Ждёмс...",
+        "А где деньги, Лебовски?",
+        "Я устал, я ухожу",
+        "Это всё, что у вас есть?",
+        "Не могу молчать!",
+        "И это только начало",
+        "Вы серьёзно?",
+        "Ну вот, опять"
+    ]
     
-    # Шрифты по умолчанию
-    DEFAULT_FONT_FAMILY = "Arial"
-    DEFAULT_FONT_SIZE = 36
-    
-    # Настройки текста
-    DEFAULT_TEXT_COLOR = "#FFFFFF"
-    DEFAULT_STROKE_COLOR = "#000000"
-    DEFAULT_STROKE_WIDTH = 2
-    
-    # База данных
-    DATABASE_PATH = "database/memes.db"
-    MAX_HISTORY_ITEMS = 10
-    
-    # Поддерживаемые форматы изображений
-    IMAGE_EXTENSIONS = "*.jpg *.jpeg *.png *.bmp"
-    EXPORT_EXTENSIONS = "PNG (*.png);;JPEG (*.jpg *.jpeg)"
+    FILTERS = [
+        "Нет фильтра",
+        "Черно-белый",
+        "Сепия", 
+        "Размытие",
+        "Инверсия",
+        "Старое фото",
+        "Повышенная яркость",
+        "Повышенный контраст"
+    ]
