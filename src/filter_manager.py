@@ -1,155 +1,157 @@
-from PyQt6.QtGui import QImage, QColor
-from PyQt6.QtCore import QRect
-import random
+from PyQt6.QtGui import QPixmap, QImage
+from PIL import Image, ImageEnhance, ImageFilter
 
 class FilterManager:
     @staticmethod
-    def apply_filter(image, filter_name, intensity=1.0):
-        """
-        Применение фильтра к изображению
+    def apply_filter(pixmap, filter_name):
+        if pixmap.isNull() or filter_name == "Нет":
+            return pixmap.copy()
         
-        Args:
-            image: QImage
-            filter_name: Название фильтра
-            intensity: Интенсивность (0.0 - 1.0)
-        
-        Returns:
-            QImage: Обработанное изображение
-        """
-        if filter_name == "Нет фильтра":
-            return image
-        
-        result = image.copy()
-        
-        if filter_name == "Черно-белый":
-            return FilterManager._apply_grayscale(result)
-        elif filter_name == "Сепия":
-            return FilterManager._apply_sepia(result, intensity)
-        elif filter_name == "Размытие":
-            return FilterManager._apply_blur(result, intensity)
-        elif filter_name == "Инверсия":
-            return FilterManager._apply_invert(result)
-        elif filter_name == "Старое фото":
-            return FilterManager._apply_vintage(result, intensity)
-        elif filter_name == "Повышенная яркость":
-            return FilterManager._apply_brightness(result, intensity)
-        elif filter_name == "Повышенный контраст":
-            return FilterManager._apply_contrast(result, intensity)
-        
-        return result
-    
-    @staticmethod
-    def _apply_grayscale(image):
-        """Применение черно-белого фильтра"""
-        for x in range(image.width()):
-            for y in range(image.height()):
-                color = image.pixelColor(x, y)
-                gray = int(color.red() * 0.299 + color.green() * 0.587 + color.blue() * 0.114)
-                image.setPixelColor(x, y, QColor(gray, gray, gray, color.alpha()))
-        return image
-    
-    @staticmethod
-    def _apply_sepia(image, intensity):
-        """Применение сепии"""
-        depth = int(30 * intensity)
-        for x in range(image.width()):
-            for y in range(image.height()):
-                color = image.pixelColor(x, y)
-                r = min(255, color.red() + depth * 2)
-                g = min(255, color.green() + depth)
-                b = max(0, color.blue() - depth)
-                image.setPixelColor(x, y, QColor(r, g, b, color.alpha()))
-        return image
-    
-    @staticmethod
-    def _apply_blur(image, intensity):
-        """Простое размытие"""
-        radius = int(3 * intensity)
-        if radius < 1:
-            return image
+        try:
+            qimage = pixmap.toImage()
             
-        result = image.copy()
-        for x in range(radius, image.width() - radius):
-            for y in range(radius, image.height() - radius):
-                r_sum = g_sum = b_sum = 0
-                count = 0
-                
-                for dx in range(-radius, radius + 1):
-                    for dy in range(-radius, radius + 1):
-                        color = image.pixelColor(x + dx, y + dy)
-                        r_sum += color.red()
-                        g_sum += color.green()
-                        b_sum += color.blue()
-                        count += 1
-                
-                if count > 0:
-                    result.setPixelColor(x, y, QColor(
-                        r_sum // count,
-                        g_sum // count,
-                        b_sum // count,
-                        image.pixelColor(x, y).alpha()
-                    ))
-        return result
+            if qimage.format() == QImage.Format.Format_ARGB32:
+                format = "RGBA"
+            else:
+                format = "RGB"
+                qimage = qimage.convertToFormat(QImage.Format.Format_RGB888)
+            
+            width = qimage.width()
+            height = qimage.height()
+            
+            ptr = qimage.constBits()
+            ptr.setsize(qimage.sizeInBytes())
+            img_data = bytes(ptr)
+            
+            img = Image.frombytes(format, (width, height), img_data)
+            
+            if filter_name == "Черно-белый":
+                if format == "RGBA":
+                    rgb = img.convert("RGB")
+                    gray = rgb.convert("L")
+                    rgba = Image.new("RGBA", img.size)
+                    rgba.paste(gray.convert("RGB"), (0, 0))
+                    rgba.putalpha(img.split()[3])
+                    img = rgba
+                else:
+                    img = img.convert("L").convert("RGB")
+            elif filter_name == "Сепия":
+                img = FilterManager._apply_sepia(img)
+            elif filter_name == "Размытие":
+                img = img.filter(ImageFilter.GaussianBlur(radius=2))
+            elif filter_name == "Контраст":
+                enhancer = ImageEnhance.Contrast(img)
+                img = enhancer.enhance(1.5)
+            elif filter_name == "Яркость":
+                enhancer = ImageEnhance.Brightness(img)
+                img = enhancer.enhance(1.3)
+            
+            return FilterManager._pil_to_qimage(img)
+        except Exception as e:
+            print(f"Filter error: {e}")
+            return pixmap.copy()
     
     @staticmethod
-    def _apply_invert(image):
-        """Инверсия цветов"""
-        for x in range(image.width()):
-            for y in range(image.height()):
-                color = image.pixelColor(x, y)
-                image.setPixelColor(x, y, QColor(
-                    255 - color.red(),
-                    255 - color.green(),
-                    255 - color.blue(),
-                    color.alpha()
-                ))
-        return image
-    
-    @staticmethod
-    def _apply_vintage(image, intensity):
-        """Эффект старого фото"""
-        image = FilterManager._apply_sepia(image, intensity)
+    def _apply_sepia(img):
+        if img.mode != "RGB":
+            img = img.convert("RGB")
         
-        # Добавляем шум
-        noise = int(10 * intensity)
-        for x in range(image.width()):
-            for y in range(image.height()):
-                if random.random() < 0.02:  # 2% пикселей делаем шумом
-                    color = image.pixelColor(x, y)
-                    noise_val = random.randint(-noise, noise)
-                    r = max(0, min(255, color.red() + noise_val))
-                    g = max(0, min(255, color.green() + noise_val))
-                    b = max(0, min(255, color.blue() + noise_val))
-                    image.setPixelColor(x, y, QColor(r, g, b, color.alpha()))
-        return image
+        width, height = img.size
+        pixels = img.load()
+        
+        for y in range(height):
+            for x in range(width):
+                r, g, b = pixels[x, y]
+                
+                tr = int(0.393 * r + 0.769 * g + 0.189 * b)
+                tg = int(0.349 * r + 0.686 * g + 0.168 * b)
+                tb = int(0.272 * r + 0.534 * g + 0.131 * b)
+                
+                tr = min(255, tr)
+                tg = min(255, tg)
+                tb = min(255, tb)
+                
+                pixels[x, y] = (tr, tg, tb)
+        
+        return img
     
     @staticmethod
-    def _apply_brightness(image, intensity):
-        """Увеличение яркости"""
-        factor = 1.0 + (intensity * 0.5)  # от 1.0 до 1.5
-        for x in range(image.width()):
-            for y in range(image.height()):
-                color = image.pixelColor(x, y)
-                r = min(255, int(color.red() * factor))
-                g = min(255, int(color.green() * factor))
-                b = min(255, int(color.blue() * factor))
-                image.setPixelColor(x, y, QColor(r, g, b, color.alpha()))
-        return image
+    def adjust_brightness(pixmap, factor):
+        if pixmap.isNull():
+            return pixmap.copy()
+        
+        try:
+            qimage = pixmap.toImage()
+            
+            if qimage.format() == QImage.Format.Format_ARGB32:
+                format = "RGBA"
+            else:
+                format = "RGB"
+                qimage = qimage.convertToFormat(QImage.Format.Format_RGB888)
+            
+            width = qimage.width()
+            height = qimage.height()
+            
+            ptr = qimage.constBits()
+            ptr.setsize(qimage.sizeInBytes())
+            img_data = bytes(ptr)
+            
+            img = Image.frombytes(format, (width, height), img_data)
+            
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(factor)
+            
+            return FilterManager._pil_to_qimage(img)
+        except Exception as e:
+            print(f"Brightness error: {e}")
+            return pixmap.copy()
     
     @staticmethod
-    def _apply_contrast(image, intensity):
-        """Увеличение контрастности"""
-        factor = 1.0 + (intensity * 0.5)  # от 1.0 до 1.5
-        for x in range(image.width()):
-            for y in range(image.height()):
-                color = image.pixelColor(x, y)
-                r = int((color.red() - 127) * factor + 127)
-                g = int((color.green() - 127) * factor + 127)
-                b = int((color.blue() - 127) * factor + 127)
-                
-                r = max(0, min(255, r))
-                g = max(0, min(255, g))
-                b = max(0, min(255, b))
-                
-                image.setPixelColor(x, y, QColor(r, g, b, color.alpha()))
-        return image
+    def adjust_contrast(pixmap, factor):
+        if pixmap.isNull():
+            return pixmap.copy()
+        
+        try:
+            qimage = pixmap.toImage()
+            
+            if qimage.format() == QImage.Format.Format_ARGB32:
+                format = "RGBA"
+            else:
+                format = "RGB"
+                qimage = qimage.convertToFormat(QImage.Format.Format_RGB888)
+            
+            width = qimage.width()
+            height = qimage.height()
+            
+            ptr = qimage.constBits()
+            ptr.setsize(qimage.sizeInBytes())
+            img_data = bytes(ptr)
+            
+            img = Image.frombytes(format, (width, height), img_data)
+            
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(factor)
+            
+            return FilterManager._pil_to_qimage(img)
+        except Exception as e:
+            print(f"Contrast error: {e}")
+            return pixmap.copy()
+    
+    @staticmethod
+    def _pil_to_qimage(pil_img):
+        if pil_img.mode == "RGB":
+            data = pil_img.tobytes("raw", "RGB")
+            qimage = QImage(data, pil_img.width, pil_img.height, QImage.Format.Format_RGB888)
+        elif pil_img.mode == "RGBA":
+            data = pil_img.tobytes("raw", "RGBA")
+            qimage = QImage(data, pil_img.width, pil_img.height, QImage.Format.Format_RGBA8888)
+        elif pil_img.mode == "L":
+            pil_img = pil_img.convert("RGB")
+            data = pil_img.tobytes("raw", "RGB")
+            qimage = QImage(data, pil_img.width, pil_img.height, QImage.Format.Format_RGB888)
+        else:
+            pil_img = pil_img.convert("RGB")
+            data = pil_img.tobytes("raw", "RGB")
+            qimage = QImage(data, pil_img.width, pil_img.height, QImage.Format.Format_RGB888)
+        
+        return QPixmap.fromImage(qimage)
