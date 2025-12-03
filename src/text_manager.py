@@ -1,127 +1,71 @@
-from PyQt6.QtCore import QPointF, Qt, QRectF
-from PyQt6.QtGui import QColor, QFont, QPainterPath, QPen, QBrush
-from PyQt6.QtWidgets import QGraphicsTextItem, QGraphicsItem
-
-class DraggableTextItem(QGraphicsTextItem):
-    """Перетаскиваемый текстовый элемент"""
-    def __init__(self, text="", parent=None):
-        super().__init__(text, parent)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, True)
-        self.setDefaultTextColor(QColor("#FFFFFF"))
-        self.setFont(QFont("Arial", 36))
-        
-        self.stroke_color = QColor("#000000")
-        self.stroke_width = 2
-        
-        self.setAcceptHoverEvents(True)
-    
-    def paint(self, painter, option, widget=None):
-        """Отрисовка текста с обводкой"""
-        # Рисуем обводку
-        if self.stroke_width > 0:
-            painter.setPen(QPen(
-                self.stroke_color,
-                self.stroke_width,
-                Qt.PenStyle.SolidLine,
-                Qt.PenCapStyle.RoundCap,
-                Qt.PenJoinStyle.RoundJoin
-            ))
-            
-            path = QPainterPath()
-            path.addText(0, 0, self.font(), self.toPlainText())
-            painter.drawPath(path)
-        
-        # Рисуем основной текст
-        painter.setPen(QPen(self.defaultTextColor()))
-        super().paint(painter, option, widget)
-    
-    def set_stroke(self, color, width):
-        """Установка параметров обводки"""
-        self.stroke_color = QColor(color)
-        self.stroke_width = width
-        self.update()
+from PyQt6.QtGui import QPainter, QPen, QFont, QColor, QBrush, QLinearGradient, QRadialGradient, QConicalGradient
+from PyQt6.QtCore import Qt, QPointF
 
 class TextManager:
-    def __init__(self, scene):
-        self.scene = scene
-        self.top_text_item = None
-        self.bottom_text_item = None
+    @staticmethod
+    def draw_text(painter, rect, text, alignment, font_family, font_size, 
+                  text_color, outline_color, has_outline, has_shadow, gradient_type=None):
+        if not text.strip():
+            return
         
-    def add_top_text(self, text="Верхний текст"):
-        """Добавление верхнего текста"""
-        if self.top_text_item:
-            self.scene.removeItem(self.top_text_item)
+        font = QFont(font_family, font_size)
+        font.setBold(True)
+        painter.setFont(font)
         
-        self.top_text_item = DraggableTextItem(text)
-        self.scene.addItem(self.top_text_item)
-        self.update_text_positions()
-        return self.top_text_item
-    
-    def add_bottom_text(self, text="Нижний текст"):
-        """Добавление нижнего текста"""
-        if self.bottom_text_item:
-            self.scene.removeItem(self.bottom_text_item)
+        if gradient_type:
+            gradient = TextManager._create_gradient(rect, gradient_type)
+            painter.setPen(QPen(QBrush(gradient), 2))
+        else:
+            painter.setPen(QPen(text_color, 2))
         
-        self.bottom_text_item = DraggableTextItem(text)
-        self.scene.addItem(self.bottom_text_item)
-        self.update_text_positions()
-        return self.bottom_text_item
-    
-    def update_text_positions(self, image_width=0, image_height=0):
-        """Обновление позиций текста"""
-        if self.top_text_item:
-            text_rect = self.top_text_item.boundingRect()
-            x = (image_width - text_rect.width()) / 2 if image_width > 0 else 10
-            self.top_text_item.setPos(x, 10)
+        if has_outline:
+            TextManager._draw_outline(painter, rect, text, alignment, outline_color)
         
-        if self.bottom_text_item and image_height > 0:
-            text_rect = self.bottom_text_item.boundingRect()
-            x = (image_width - text_rect.width()) / 2 if image_width > 0 else 10
-            y = image_height - text_rect.height() - 10
-            self.bottom_text_item.setPos(x, y)
-    
-    def clear_all_text(self):
-        """Удаление всего текста"""
-        if self.top_text_item:
-            self.scene.removeItem(self.top_text_item)
-            self.top_text_item = None
+        if has_shadow:
+            TextManager._draw_shadow(painter, rect, text, alignment)
         
-        if self.bottom_text_item:
-            self.scene.removeItem(self.bottom_text_item)
-            self.bottom_text_item = None
+        painter.drawText(rect, alignment, text)
     
-    def get_text_settings(self, is_top_text=True):
-        """Получение настроек текста"""
-        text_item = self.top_text_item if is_top_text else self.bottom_text_item
-        if text_item:
-            return {
-                'text': text_item.toPlainText(),
-                'font_family': text_item.font().family(),
-                'font_size': text_item.font().pointSize(),
-                'text_color': text_item.defaultTextColor().name(),
-                'stroke_color': text_item.stroke_color.name(),
-                'stroke_width': text_item.stroke_width
-            }
-        return None
+    @staticmethod
+    def _draw_outline(painter, rect, text, alignment, outline_color):
+        painter.save()
+        outline_pen = QPen(outline_color)
+        outline_pen.setWidth(6)
+        painter.setPen(outline_pen)
+        
+        offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+        for dx, dy in offsets:
+            outline_rect = rect.translated(dx, dy)
+            painter.drawText(outline_rect, alignment, text)
+        
+        painter.restore()
     
-    def set_text_settings(self, settings, is_top_text=True):
-        """Установка настроек текста"""
-        text_item = self.top_text_item if is_top_text else self.bottom_text_item
-        if text_item and settings:
-            font = QFont(
-                settings.get('font_family', 'Arial'),
-                settings.get('font_size', 36)
-            )
-            text_item.setFont(font)
-            text_item.setDefaultTextColor(QColor(settings.get('text_color', '#FFFFFF')))
-            text_item.set_stroke(
-                settings.get('stroke_color', '#000000'),
-                settings.get('stroke_width', 2)
-            )
-            text_item.update()
+    @staticmethod
+    def _draw_shadow(painter, rect, text, alignment):
+        painter.save()
+        shadow_color = QColor(0, 0, 0, 150)
+        shadow_pen = QPen(shadow_color)
+        shadow_pen.setWidth(3)
+        painter.setPen(shadow_pen)
+        
+        shadow_rect = rect.translated(2, 2)
+        painter.drawText(shadow_rect, alignment, text)
+        
+        painter.restore()
     
-    def has_text(self):
-        """Проверка наличия текста"""
-        return self.top_text_item is not None or self.bottom_text_item is not None
+    @staticmethod
+    def _create_gradient(rect, gradient_type):
+        if gradient_type == "Линейный":
+            gradient = QLinearGradient(rect.topLeft(), rect.bottomRight())
+        elif gradient_type == "Радиальный":
+            center = QPointF(rect.center())
+            gradient = QRadialGradient(center, min(rect.width(), rect.height()) / 2)
+        else:
+            center = QPointF(rect.center())
+            gradient = QConicalGradient(center, 45)
+        
+        gradient.setColorAt(0, QColor(255, 0, 0))
+        gradient.setColorAt(0.5, QColor(0, 255, 0))
+        gradient.setColorAt(1, QColor(0, 0, 255))
+        
+        return gradient
