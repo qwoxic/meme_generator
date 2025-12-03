@@ -4,55 +4,36 @@ from PyQt6.QtCore import QRectF
 class MemeRenderer:
     @staticmethod
     def render_meme(image_pixmap, text_items):
-        """
-        Рендеринг финального изображения с текстом
-        
-        Args:
-            image_pixmap: Исходное изображение
-            text_items: Список текстовых элементов
-        
-        Returns:
-            QPixmap: Готовый мем
-        """
-        # Создаем новый pixmap с размерами изображения
         result_pixmap = QPixmap(image_pixmap.size())
         result_pixmap.fill(QColor(0, 0, 0, 0))
         
         painter = QPainter(result_pixmap)
-        
-        # Рисуем фоновое изображение
         painter.drawPixmap(0, 0, image_pixmap)
         
-        # Рисуем все текстовые элементы
-        for text_item in text_items:
-            if text_item:
-                # Сохраняем состояние painter
-                painter.save()
-                
-                # Перемещаем painter к позиции текста
-                painter.translate(text_item.pos())
-                
-                # Рисуем текстовый элемент
-                text_item.paint(painter, None, None)
-                
-                # Восстанавливаем состояние painter
-                painter.restore()
+        for item in text_items:
+            if item['text'].strip():
+                MemeRenderer._draw_text_item(painter, result_pixmap.rect(), item)
         
         painter.end()
-        
         return result_pixmap
     
     @staticmethod
-    def render_to_image(meme_pixmap, quality=90):
-        """
-        Конвертация QPixmap в QImage
+    def _draw_text_item(painter, rect, item):
+        from .text_manager import TextManager
         
-        Args:
-            meme_pixmap: QPixmap мема
-            quality: Качество изображения (1-100)
+        rectf = QRectF(rect)
         
-        Returns:
-            QImage: Изображение мема
-        """
-        image = meme_pixmap.toImage()
-        return image
+        if item['position'] == 'top':
+            text_rect = QRectF(0, 10, rectf.width(), rectf.height() // 2 - 10)
+            alignment = Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter
+        else:
+            text_rect = QRectF(0, rectf.height() // 2, rectf.width(), rectf.height() // 2 - 10)
+            alignment = Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter
+        
+        TextManager.draw_text(
+            painter, text_rect, item['text'], alignment,
+            item['style']['font'], item['style']['size'],
+            item['style']['color'], item['style']['outline_color'],
+            item['style']['has_outline'], item['style']['has_shadow'],
+            item['style']['gradient_type'] if item['style']['has_gradient'] else None
+        )
