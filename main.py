@@ -1,20 +1,9 @@
 import sys
-import os
 from PyQt6.QtWidgets import QApplication
-from src.main_window import MainWindow
+from src.main_window import MemeGeneratorPro
 
-def main():
-    # Создаем директорию для базы данных, если ее нет
-    os.makedirs("database", exist_ok=True)
-    
+if __name__ == '__main__':
     app = QApplication(sys.argv)
-    app.setApplicationName("Meme Generator")
-    app.setOrganizationName("MemeCorp")
-    
-    window = MainWindow()
+    window = MemeGeneratorPro()
     window.show()
-    
     sys.exit(app.exec())
-
-if __name__ == "__main__":
-    main()
