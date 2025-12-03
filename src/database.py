@@ -1,162 +1,130 @@
+import sqlite3
+import os
+import json
+import csv
+
 class Database:
-    # ... существующий код ...
+    def __init__(self):
+        os.makedirs("data", exist_ok=True)
+        self.conn = sqlite3.connect("data/memes.db")
+        self.create_tables()
     
     def create_tables(self):
-        """Создание таблиц базы данных"""
-        # Существующие таблицы...
+        cursor = self.conn.cursor()
+        cursor.execute('''CREATE TABLE IF NOT EXISTS images 
+                         (id INTEGER PRIMARY KEY, path TEXT, width INTEGER, height INTEGER, 
+                          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         
-        # Новая таблица: версии мемов
-        self.cursor.execute('''
-            CREATE TABLE IF NOT EXISTS meme_versions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                parent_id INTEGER,
-                image_path TEXT NOT NULL,
-                top_text TEXT,
-                bottom_text TEXT,
-                font_family TEXT,
-                font_size INTEGER,
-                text_color TEXT,
-                stroke_color TEXT,
-                stroke_width INTEGER,
-                filter_name TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (parent_id) REFERENCES meme_versions (id)
-            )
-        ''')
+        cursor.execute('''CREATE TABLE IF NOT EXISTS memes 
+                         (id INTEGER PRIMARY KEY, image_id INTEGER, top_text TEXT, bottom_text TEXT, 
+                          font_size INTEGER, text_color TEXT, outline_color TEXT, has_outline BOOLEAN, 
+                          has_shadow BOOLEAN, output_path TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                          FOREIGN KEY (image_id) REFERENCES images (id))''')
         
-        # Новая таблица: история редактирования
-        self.cursor.execute('''
-            CREATE TABLE IF NOT EXISTS meme_edits (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                meme_id INTEGER,
-                action_type TEXT NOT NULL,
-                action_details TEXT,
-                edited_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (meme_id) REFERENCES meme_versions (id)
-            )
-        ''')
+        cursor.execute('''CREATE TABLE IF NOT EXISTS meme_versions 
+                         (id INTEGER PRIMARY KEY, meme_id INTEGER, version_data TEXT, 
+                          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+                          FOREIGN KEY (meme_id) REFERENCES memes (id))''')
         
-        # Новая таблица: случайные мемы
-        self.cursor.execute('''
-            CREATE TABLE IF NOT EXISTS random_memes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                image_path TEXT NOT NULL,
-                top_text TEXT,
-                bottom_text TEXT,
-                filter_name TEXT,
-                generated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+        cursor.execute('''CREATE TABLE IF NOT EXISTS statistics 
+                         (id INTEGER PRIMARY KEY, meme_id INTEGER, views INTEGER DEFAULT 0,
+                          downloads INTEGER DEFAULT 0, likes INTEGER DEFAULT 0,
+                          last_viewed TIMESTAMP, FOREIGN KEY (meme_id) REFERENCES memes (id))''')
+        
+        cursor.execute('''CREATE TABLE IF NOT EXISTS user_settings 
+                         (id INTEGER PRIMARY KEY, setting_name TEXT UNIQUE, setting_value TEXT,
+                          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         
         self.conn.commit()
     
-    def save_meme_version(self, meme_data, parent_id=None):
-        """
-        Сохранение версии мема
-        
-        Args:
-            meme_data: Словарь с данными мема
-            parent_id: ID родительской версии
-        """
-        self.cursor.execute('''
-            INSERT INTO meme_versions 
-            (parent_id, image_path, top_text, bottom_text, 
-             font_family, font_size, text_color, stroke_color, 
-             stroke_width, filter_name)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            parent_id,
-            meme_data.get('image_path'),
-            meme_data.get('top_text'),
-            meme_data.get('bottom_text'),
-            meme_data.get('font_family'),
-            meme_data.get('font_size'),
-            meme_data.get('text_color'),
-            meme_data.get('stroke_color'),
-            meme_data.get('stroke_width'),
-            meme_data.get('filter_name')
-        ))
+    def save_image(self, path, width, height):
+        cursor = self.conn.cursor()
+        cursor.execute("INSERT INTO images (path, width, height) VALUES (?, ?, ?)", 
+                      (path, width, height))
         self.conn.commit()
-        return self.cursor.lastrowid
+        return cursor.lastrowid
     
-    def log_edit_action(self, meme_id, action_type, details=None):
-        """
-        Логирование действия редактирования
+    def save_meme(self, image_id, top_text, bottom_text, font_size, text_color, 
+                  outline_color, has_outline, has_shadow, output_path):
+        cursor = self.conn.cursor()
+        cursor.execute('''INSERT INTO memes (image_id, top_text, bottom_text, font_size, 
+                         text_color, outline_color, has_outline, has_shadow, output_path) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
+                      (image_id, top_text, bottom_text, font_size, text_color, 
+                       outline_color, has_outline, has_shadow, output_path))
+        meme_id = cursor.lastrowid
         
-        Args:
-            meme_id: ID мема
-            action_type: Тип действия
-            details: Детали действия
-        """
-        self.cursor.execute('''
-            INSERT INTO meme_edits (meme_id, action_type, action_details)
-            VALUES (?, ?, ?)
-        ''', (meme_id, action_type, details))
+        cursor.execute('''INSERT INTO meme_versions (meme_id, version_data) 
+                         VALUES (?, ?)''', 
+                      (meme_id, json.dumps({
+                          'top_text': top_text, 
+                          'bottom_text': bottom_text, 
+                          'font_size': font_size, 
+                          'text_color': text_color, 
+                          'outline_color': outline_color
+                      })))
+        
+        cursor.execute('''INSERT INTO statistics (meme_id, views, downloads, likes) 
+                         VALUES (?, 0, 0, 0)''', (meme_id,))
+        
         self.conn.commit()
+        return meme_id
     
-    def get_meme_versions(self, limit=10):
-        """
-        Получение последних версий мемов
-        
-        Args:
-            limit: Количество версий
-        
-        Returns:
-            list: Список версий
-        """
-        self.cursor.execute('''
-            SELECT * FROM meme_versions 
-            ORDER BY created_at DESC 
-            LIMIT ?
-        ''', (limit,))
-        
-        columns = [column[0] for column in self.cursor.description]
-        versions = []
-        
-        for row in self.cursor.fetchall():
-            versions.append(dict(zip(columns, row)))
-        
-        return versions
+    def get_recent_images(self, limit=10):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT path FROM images ORDER BY created_at DESC LIMIT ?", (limit,))
+        return [row[0] for row in cursor.fetchall()]
     
-    def save_random_meme(self, meme_data):
-        """
-        Сохранение случайного мема
-        
-        Args:
-            meme_data: Данные случайного мема
-        """
-        self.cursor.execute('''
-            INSERT INTO random_memes 
-            (image_path, top_text, bottom_text, filter_name)
-            VALUES (?, ?, ?, ?)
-        ''', (
-            meme_data.get('image_path'),
-            meme_data.get('top_text'),
-            meme_data.get('bottom_text'),
-            meme_data.get('filter_name')
-        ))
+    def get_recent_memes(self, limit=10):
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT output_path FROM memes ORDER BY created_at DESC LIMIT ?', (limit,))
+        return [row[0] for row in cursor.fetchall()]
+    
+    def increment_views(self, meme_id):
+        cursor = self.conn.cursor()
+        cursor.execute('''UPDATE statistics SET views = views + 1, 
+                         last_viewed = CURRENT_TIMESTAMP WHERE meme_id = ?''', (meme_id,))
         self.conn.commit()
     
-    def get_random_memes_history(self, limit=5):
-        """
-        Получение истории случайных мемов
+    def increment_downloads(self, meme_id):
+        cursor = self.conn.cursor()
+        cursor.execute('UPDATE statistics SET downloads = downloads + 1 WHERE meme_id = ?', (meme_id,))
+        self.conn.commit()
+    
+    def get_statistics(self):
+        cursor = self.conn.cursor()
+        cursor.execute('''SELECT m.id, m.top_text, m.bottom_text, m.created_at,
+                         s.views, s.downloads, s.likes, s.last_viewed
+                         FROM memes m
+                         LEFT JOIN statistics s ON m.id = s.meme_id
+                         ORDER BY m.created_at DESC''')
+        return cursor.fetchall()
+    
+    def save_setting(self, name, value):
+        cursor = self.conn.cursor()
+        cursor.execute('''INSERT OR REPLACE INTO user_settings (setting_name, setting_value) 
+                         VALUES (?, ?)''', (name, value))
+        self.conn.commit()
+    
+    def get_setting(self, name, default=None):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT setting_value FROM user_settings WHERE setting_name = ?", (name,))
+        result = cursor.fetchone()
+        return result[0] if result else default
+    
+    def close(self):
+        self.conn.close()
+    
+    def export_to_csv(self, filename):
+        cursor = self.conn.cursor()
+        cursor.execute('''SELECT m.id, m.top_text, m.bottom_text, m.created_at,
+                         s.views, s.downloads, s.likes
+                         FROM memes m
+                         LEFT JOIN statistics s ON m.id = s.meme_id''')
         
-        Args:
-            limit: Количество записей
-        
-        Returns:
-            list: История случайных мемов
-        """
-        self.cursor.execute('''
-            SELECT * FROM random_memes 
-            ORDER BY generated_at DESC 
-            LIMIT ?
-        ''', (limit,))
-        
-        columns = [column[0] for column in self.cursor.description]
-        memes = []
-        
-        for row in self.cursor.fetchall():
-            memes.append(dict(zip(columns, row)))
-        
-        return memes
+        with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['ID', 'Верхний текст', 'Нижний текст', 'Дата создания', 
+                            'Просмотры', 'Скачивания', 'Лайки'])
+            for row in cursor.fetchall():
+                writer.writerow(row)
