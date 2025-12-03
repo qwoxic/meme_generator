@@ -1,26 +1,18 @@
 """
-Генератор мемов - приложение для создания мемов
+Meme Generator Pro Package
 """
 
-__version__ = "1.0.0"
-__author__ = "Meme Generator Team"
-
-# Экспорт основных классов для удобного импорта
-from .main_window import MainWindow
+from .main_window import MemeGeneratorPro
 from .image_processor import ImageProcessor
-from .text_manager import TextManager, DraggableTextItem
+from .text_manager import TextManager
 from .meme_renderer import MemeRenderer
 from .database import Database
 from .export_manager import ExportManager
-from .constants import Constants
+from .filter_manager import FilterManager
+from .random_meme_generator import RandomMemeGenerator
+from .statistics_dialog import StatisticsDialog
+from .text_style_dialog import TextStyleDialog
+from .constants import *
 
-__all__ = [
-    'MainWindow',
-    'ImageProcessor',
-    'TextManager',
-    'DraggableTextItem',
-    'MemeRenderer',
-    'Database',
-    'ExportManager',
-    'Constants',
-]
+__version__ = "1.0"
+__author__ = "DenisZuravlev"
