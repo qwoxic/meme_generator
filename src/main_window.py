@@ -534,35 +534,28 @@ class MemeGeneratorPro(QMainWindow):
     def show_pixmap(self, pixmap):
         if pixmap.isNull():
             return
-        
-        # Получаем размеры области прокрутки
+
         scroll_viewport = self.image_scroll.viewport()
         available_size = scroll_viewport.size()
-        
-        # Вычисляем масштаб для вписывания изображения
+
         pixmap_size = pixmap.size()
-        
-        # Масштабируем изображение чтобы оно вписывалось в доступное пространство
+
         scaled = pixmap.scaled(
             available_size,
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation
         )
-        
-        # Устанавливаем изображение
+
         self.image_label.setPixmap(scaled)
         self.image_label.setText("")
-        
-        # Если изображение меньше доступного пространства - центрируем
+
         if scaled.width() < available_size.width() and scaled.height() < available_size.height():
             self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.image_label.setMinimumSize(scaled.size())
         else:
-            # Если изображение больше - показываем с ползунками
             self.image_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
             self.image_label.setMinimumSize(QSize(0, 0))
         
-        # Обновляем виджет
         self.image_label.update()
     
     def apply_filter(self, filter_name):
