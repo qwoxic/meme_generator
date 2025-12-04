@@ -1,73 +1,132 @@
-from PyQt6.QtGui import QPainter, QPen, QFont, QColor, QBrush, QLinearGradient, QRadialGradient, QConicalGradient
-from PyQt6.QtCore import Qt, QPointF
+from PyQt6.QtWidgets import *
+from PyQt6.QtCore import *
+from PyQt6.QtGui import *
+from .constants import BUTTON_STYLE
 
-class TextManager:
-    @staticmethod
-    def draw_text(painter, rect, text, alignment, font_family, font_size, 
-                  text_color, outline_color, has_outline, has_shadow, gradient_type=None):
-        if not text.strip():
-            return
-        
-        font = QFont(font_family, font_size)
-        font.setBold(True)
-        painter.setFont(font)
-        
-        if gradient_type and gradient_type != "Нет":
-            gradient = TextManager._create_gradient(rect, text_color, gradient_type)
-            painter.setPen(QPen(QBrush(gradient), 2))
-        else:
-            painter.setPen(QPen(text_color, 2))
-        
-        if has_outline:
-            TextManager._draw_outline(painter, rect, text, alignment, outline_color)
-        
-        if has_shadow:
-            TextManager._draw_shadow(painter, rect, text, alignment)
-        
-        painter.drawText(rect, alignment, text)
+class TextStyleDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Стиль текста")
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #1A1A2E;
+                color: white;
+                font-family: Arial;
+            }
+            QLabel {
+                color: #E6E6FA;
+                font-size: 12px;
+                padding: 3px;
+            }
+            QFontComboBox, QSpinBox, QComboBox {
+                background-color: #16213E;
+                color: white;
+                border: 1px solid #8A2BE2;
+                border-radius: 4px;
+                padding: 5px;
+                font-size: 12px;
+                selection-background-color: #8A2BE2;
+            }
+            QCheckBox {
+                color: #E6E6FA;
+                font-size: 12px;
+                padding: 5px;
+            }
+            QCheckBox::indicator {
+                width: 16px;
+                height: 16px;
+                border: 1px solid #8A2BE2;
+                border-radius: 3px;
+                background-color: #16213E;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #8A2BE2;
+            }
+        """)
+        self.text_color = QColor(255, 255, 255)
+        self.outline_color = QColor(0, 0, 0)
+        self.init_ui()
+        self.center_window()
     
-    @staticmethod
-    def _draw_outline(painter, rect, text, alignment, outline_color):
-        painter.save()
-        outline_pen = QPen(outline_color)
-        outline_pen.setWidth(6)
-        painter.setPen(outline_pen)
+    def init_ui(self):
+        layout = QVBoxLayout()
+        layout.setSpacing(8)
+        layout.setContentsMargins(15, 15, 15, 15)
         
-        offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
-        for dx, dy in offsets:
-            outline_rect = rect.translated(dx, dy)
-            painter.drawText(outline_rect, alignment, text)
+        font_layout = QHBoxLayout()
+        font_layout.addWidget(QLabel("Шрифт:"))
+        self.font_combo = QFontComboBox()
+        self.font_combo.setCurrentFont(QFont("Impact"))
+        font_layout.addWidget(self.font_combo)
+        layout.addLayout(font_layout)
         
-        painter.restore()
+        size_layout = QHBoxLayout()
+        size_layout.addWidget(QLabel("Размер:"))
+        self.size_spin = QSpinBox()
+        self.size_spin.setRange(10, 150)
+        self.size_spin.setValue(48)
+        size_layout.addWidget(self.size_spin)
+        layout.addLayout(size_layout)
+        
+        colors_layout = QGridLayout()
+        
+        self.color_btn = QPushButton("Цвет текста")
+        self.color_btn.setStyleSheet(BUTTON_STYLE)
+        self.color_btn.clicked.connect(self.choose_color)
+        
+        self.outline_btn = QPushButton("Цвет обводки")
+        self.outline_btn.setStyleSheet(BUTTON_STYLE)
+        self.outline_btn.clicked.connect(self.choose_outline_color)
+        
+        colors_layout.addWidget(self.color_btn, 0, 0)
+        colors_layout.addWidget(self.outline_btn, 0, 1)
+        
+        layout.addLayout(colors_layout)
+        
+        self.outline_cb = QCheckBox("Обводка")
+        self.shadow_cb = QCheckBox("Тень")
+        self.gradient_cb = QCheckBox("Градиент")
+        
+        layout.addWidget(self.outline_cb)
+        layout.addWidget(self.shadow_cb)
+        layout.addWidget(self.gradient_cb)
+        
+        gradient_layout = QHBoxLayout()
+        gradient_layout.addWidget(QLabel("Тип градиента:"))
+        self.gradient_combo = QComboBox()
+        self.gradient_combo.addItems(["Линейный", "Радиальный", "Конический"])
+        gradient_layout.addWidget(self.gradient_combo)
+        layout.addLayout(gradient_layout)
+        
+        button_layout = QHBoxLayout()
+        ok_btn = QPushButton("Применить")
+        ok_btn.setStyleSheet(BUTTON_STYLE)
+        cancel_btn = QPushButton("Отмена")
+        cancel_btn.setStyleSheet(BUTTON_STYLE)
+        
+        ok_btn.clicked.connect(self.accept)
+        cancel_btn.clicked.connect(self.reject)
+        
+        button_layout.addWidget(ok_btn)
+        button_layout.addWidget(cancel_btn)
+        
+        layout.addLayout(button_layout)
+        self.setLayout(layout)
     
-    @staticmethod
-    def _draw_shadow(painter, rect, text, alignment):
-        painter.save()
-        shadow_color = QColor(0, 0, 0, 150)
-        shadow_pen = QPen(shadow_color)
-        shadow_pen.setWidth(3)
-        painter.setPen(shadow_pen)
-        
-        shadow_rect = rect.translated(2, 2)
-        painter.drawText(shadow_rect, alignment, text)
-        
-        painter.restore()
+    def choose_color(self):
+        color = QColorDialog.getColor(self.text_color, self, "Выберите цвет текста")
+        if color.isValid():
+            self.text_color = color
     
-    @staticmethod
-    def _create_gradient(rect, base_color, gradient_type):
-        r, g, b, a = base_color.red(), base_color.green(), base_color.blue(), base_color.alpha()
-        
-        if gradient_type == "Линейный":
-            gradient = QLinearGradient(rect.topLeft(), rect.bottomRight())
-        elif gradient_type == "Радиальный":
-            center = QPointF(rect.center())
-            gradient = QRadialGradient(center, min(rect.width(), rect.height()) / 2)
-        else:
-            center = QPointF(rect.center())
-            gradient = QConicalGradient(center, 45)
-        
-        gradient.setColorAt(0.0, QColor(max(0, r-50), max(0, g-50), max(0, b-50), a))
-        gradient.setColorAt(0.5, base_color)
-        gradient.setColorAt(1.0, QColor(min(255, r+50), min(255, g+50), min(255, b+50), a))
-        
-        return gradient
+    def choose_outline_color(self):
+        color = QColorDialog.getColor(self.outline_color, self, "Выберите цвет обводки")
+        if color.isValid():
+            self.outline_color = color
+    
+    def center_window(self):
+        screen = QApplication.primaryScreen().geometry()
+        self.setGeometry(
+            screen.width() // 2 - 200,
+            screen.height() // 2 - 200,
+            400, 400
+        )
