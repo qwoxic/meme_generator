@@ -47,8 +47,7 @@ class FilterManager:
                 img = enhancer.enhance(1.3)
             
             return FilterManager._pil_to_qimage(img)
-        except Exception as e:
-            print(f"Filter error: {e}")
+        except:
             return pixmap.copy()
     
     @staticmethod
@@ -102,8 +101,7 @@ class FilterManager:
             img = enhancer.enhance(factor)
             
             return FilterManager._pil_to_qimage(img)
-        except Exception as e:
-            print(f"Brightness error: {e}")
+        except:
             return pixmap.copy()
     
     @staticmethod
@@ -133,25 +131,27 @@ class FilterManager:
             img = enhancer.enhance(factor)
             
             return FilterManager._pil_to_qimage(img)
-        except Exception as e:
-            print(f"Contrast error: {e}")
+        except:
             return pixmap.copy()
     
     @staticmethod
     def _pil_to_qimage(pil_img):
-        if pil_img.mode == "RGB":
-            data = pil_img.tobytes("raw", "RGB")
-            qimage = QImage(data, pil_img.width, pil_img.height, QImage.Format.Format_RGB888)
-        elif pil_img.mode == "RGBA":
-            data = pil_img.tobytes("raw", "RGBA")
-            qimage = QImage(data, pil_img.width, pil_img.height, QImage.Format.Format_RGBA8888)
-        elif pil_img.mode == "L":
-            pil_img = pil_img.convert("RGB")
-            data = pil_img.tobytes("raw", "RGB")
-            qimage = QImage(data, pil_img.width, pil_img.height, QImage.Format.Format_RGB888)
-        else:
-            pil_img = pil_img.convert("RGB")
-            data = pil_img.tobytes("raw", "RGB")
-            qimage = QImage(data, pil_img.width, pil_img.height, QImage.Format.Format_RGB888)
-        
-        return QPixmap.fromImage(qimage)
+        try:
+            if pil_img.mode == "RGB":
+                data = pil_img.tobytes("raw", "RGB")
+                qimage = QImage(data, pil_img.width, pil_img.height, QImage.Format.Format_RGB888)
+            elif pil_img.mode == "RGBA":
+                data = pil_img.tobytes("raw", "RGBA")
+                qimage = QImage(data, pil_img.width, pil_img.height, QImage.Format.Format_RGBA8888)
+            elif pil_img.mode == "L":
+                rgb_img = pil_img.convert("RGB")
+                data = rgb_img.tobytes("raw", "RGB")
+                qimage = QImage(data, rgb_img.width, rgb_img.height, QImage.Format.Format_RGB888)
+            else:
+                rgb_img = pil_img.convert("RGB")
+                data = rgb_img.tobytes("raw", "RGB")
+                qimage = QImage(data, rgb_img.width, rgb_img.height, QImage.Format.Format_RGB888)
+            
+            return QPixmap.fromImage(qimage)
+        except:
+            return QPixmap(100, 100)
