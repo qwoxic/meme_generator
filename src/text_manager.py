@@ -12,8 +12,8 @@ class TextManager:
         font.setBold(True)
         painter.setFont(font)
         
-        if gradient_type:
-            gradient = TextManager._create_gradient(rect, gradient_type)
+        if gradient_type and gradient_type != "Нет":
+            gradient = TextManager._create_gradient(rect, text_color, gradient_type)
             painter.setPen(QPen(QBrush(gradient), 2))
         else:
             painter.setPen(QPen(text_color, 2))
@@ -54,7 +54,9 @@ class TextManager:
         painter.restore()
     
     @staticmethod
-    def _create_gradient(rect, gradient_type):
+    def _create_gradient(rect, base_color, gradient_type):
+        r, g, b, a = base_color.red(), base_color.green(), base_color.blue(), base_color.alpha()
+        
         if gradient_type == "Линейный":
             gradient = QLinearGradient(rect.topLeft(), rect.bottomRight())
         elif gradient_type == "Радиальный":
@@ -64,8 +66,8 @@ class TextManager:
             center = QPointF(rect.center())
             gradient = QConicalGradient(center, 45)
         
-        gradient.setColorAt(0, QColor(255, 0, 0))
-        gradient.setColorAt(0.5, QColor(0, 255, 0))
-        gradient.setColorAt(1, QColor(0, 0, 255))
+        gradient.setColorAt(0.0, QColor(max(0, r-50), max(0, g-50), max(0, b-50), a))
+        gradient.setColorAt(0.5, base_color)
+        gradient.setColorAt(1.0, QColor(min(255, r+50), min(255, g+50), min(255, b+50), a))
         
         return gradient
