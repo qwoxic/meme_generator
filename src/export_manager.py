@@ -16,10 +16,7 @@ class ExportManager:
         )
         
         if file_path:
-            if file_path.lower().endswith('.jpg') or file_path.lower().endswith('.jpeg'):
-                quality = 90
-            else:
-                quality = -1
+            quality = 90 if file_path.lower().endswith(('.jpg', '.jpeg')) else -1
             
             if pixmap.save(file_path, quality=quality):
                 return file_path
