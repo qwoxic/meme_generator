@@ -122,9 +122,12 @@ class Database:
                          FROM memes m
                          LEFT JOIN statistics s ON m.id = s.meme_id''')
         
-        with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+        rows = cursor.fetchall()
+        
+        with open(filename, 'w', newline='', encoding='utf-8-sig') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(['ID', 'Верхний текст', 'Нижний текст', 'Дата создания', 
                             'Просмотры', 'Скачивания', 'Лайки'])
-            for row in cursor.fetchall():
+            
+            for row in rows:
                 writer.writerow(row)
