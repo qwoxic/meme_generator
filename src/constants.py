@@ -1,7 +1,7 @@
 from PyQt6.QtGui import QColor
 
-APP_NAME = "Meme Generator"
-APP_VERSION = "1.0"
+APP_NAME = "Meme Generator Pro"
+APP_VERSION = "2.0"
 DEFAULT_TEXT_COLOR = QColor(255, 255, 255)
 DEFAULT_OUTLINE_COLOR = QColor(0, 0, 0)
 MIN_FONT_SIZE = 10
@@ -9,12 +9,16 @@ MAX_FONT_SIZE = 150
 DEFAULT_FONT_SIZE = 48
 
 RANDOM_TEXTS = [
-    "Когда код заработал с первого раза",
-    "Мой код vs Код коллеги",
-    "Когда находишь баг в продакшене",
-    "План на день vs Реальность",
-    "Я: Буду рано спать\nТоже я: 3 часа ночи",
+    "Когда код заработал\nс первого раза",
+    "Когда находишь\nбаг в продакшене",
+    "Я: Буду рано спать\nТакже я: 3 часа ночи",
     "Ожидание: Красивый UI\nРеальность: Кривые кнопки",
+    "Когда deadline был вчера",
+    "Работает? Не трогай!",
+    "Завтра начну с понедельника",
+    "Не баг, а фича",
+    "Компьютер: 1% заряда\nЯ: Успею",
+    "Смотрю на код который писал неделю назад\nЧей это код?",
 ]
 
 AVAILABLE_FONTS = [
@@ -30,12 +34,12 @@ BUTTON_STYLE = """
                                     stop: 0 #8A2BE2, stop: 1 #4169E1);
         color: white;
         border: none;
-        padding: 6px 12px;
-        border-radius: 5px;
-        font-size: 12px;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 13px;
         font-weight: bold;
-        margin: 2px;
-        min-height: 30px;
+        margin: 3px;
+        min-height: 35px;
     }
     QPushButton:hover {
         background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
@@ -53,19 +57,19 @@ BUTTON_STYLE = """
 
 GROUP_BOX_STYLE = """
     QGroupBox {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: bold;
         color: #8A2BE2;
-        border: 1px solid #8A2BE2;
-        border-radius: 8px;
-        margin-top: 8px;
-        padding-top: 12px;
-        background-color: rgba(255, 255, 255, 0.05);
+        border: 2px solid #8A2BE2;
+        border-radius: 10px;
+        margin-top: 10px;
+        padding-top: 15px;
+        background-color: rgba(22, 33, 62, 0.7);
     }
     QGroupBox::title {
         subcontrol-origin: margin;
-        left: 12px;
-        padding: 0 8px 0 8px;
+        left: 15px;
+        padding: 0 10px 0 10px;
         background-color: #1A1A2E;
     }
 """
