@@ -1,5 +1,5 @@
 from PyQt6.QtGui import QPainter, QPixmap, QColor
-from PyQt6.QtCore import QRectF
+from PyQt6.QtCore import QRectF, Qt
 
 class MemeRenderer:
     @staticmethod
