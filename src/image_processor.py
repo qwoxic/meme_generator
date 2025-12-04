@@ -3,4 +3,7 @@ from PyQt6.QtGui import QPixmap
 class ImageProcessor:
     @staticmethod
     def load_image(path):
-        return QPixmap(path)
+        pixmap = QPixmap(path)
+        if pixmap.isNull():
+            return QPixmap()
+        return pixmap
