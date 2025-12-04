@@ -1,7 +1,3 @@
-"""
-Meme Generator Pro Package
-"""
-
 from .main_window import MemeGeneratorPro
 from .image_processor import ImageProcessor
 from .text_manager import TextManager
@@ -15,4 +11,3 @@ from .text_style_dialog import TextStyleDialog
 from .constants import *
 
 __version__ = "1.0"
-__author__ = "DenisZuravlev"
